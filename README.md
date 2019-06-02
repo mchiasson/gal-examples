@@ -14,3 +14,27 @@
 </p>
 
 # GAL Examples
+
+Repository of Example application for the (G)raphic (A)bstraction (L)ayer. Please read [GAL README](https://github.com/mchiasson/gal/README.md) for more details.
+
+## :heart: Sponsor us :heart:
+
+[![Donate to this project using Patreon](https://img.shields.io/badge/Patreon-donate-yellow.svg)](https://www.patreon.com/mattchiasson)
+[![Donate to this project using Flattr](https://img.shields.io/badge/Flattr-donate-yellow.svg)](https://flattr.com/@mattchiasson)
+[![Donate to this project using Liberapay](https://img.shields.io/badge/Liberapay-donate-yellow.svg)](https://liberapay.com/MattChiasson/donate)
+[![Donate to this project using Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-donate-yellow.svg)](https://www.buymeacoffee.com/MYO5mfJhL)
+
+## Contributing
+
+Please read [CONTRIBUTING.md](https://github.com/mchiasson/gal/CONTRIBUTING.md) for details on our process for submitting pull requests to us, and read [CODE_OF_CONDUCT.md](https://github.com/mchiasson/gal/CODE_OF_CONDUCT.md) for details on our code of conduct.
+
+## Authors
+
+-   **Mathieu-André Chiasson** - *Initial work* - [mchiasson](https://github.com/mchiasson)
+
+See also the list of [contributors](https://github.com/mchiasson/gal-examples/contributors) who participated in this project.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/mchiasson/gal/LICENSE) file for details
+
