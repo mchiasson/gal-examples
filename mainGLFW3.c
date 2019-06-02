@@ -20,74 +20,74 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  ******************************************************************************/
+
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
+#if defined(__APPLE__)
+#    define GLFW_EXPOSE_NATIVE_COCOA 1
+#elif defined(_WIN32)
+#    define GLFW_EXPOSE_NATIVE_WIN32 1
+#elif defined(__linux__)
+#    define GLFW_EXPOSE_NATIVE_X11 1
+#endif
+#include <GLFW/glfw3native.h>
+
 extern const char *example_window_title;
-extern int example_window_width;
-extern int example_window_height;
+extern const int example_window_width;
+extern const int example_window_height;
+extern bool example_init(void *native_window_handle);
+extern void example_frame();
 
 void error_callback(int error, const char* description)
 {
     fprintf(stderr, "Error %d: %s\n", error, description);
 }
 
+void *get_native_window(GLFWwindow *window)
+{
+#if defined(GLFW_EXPOSE_NATIVE_COCOA)
+    return glfwGetCocoaWindow(window);
+#elif GLFW_EXPOSE_NATIVE_WIN32
+    return glfwGetWin32Window(window);
+#elif defined(GLFW_EXPOSE_NATIVE_X11)
+    return (void *) (uintptr_t) glfwGetX11Window(window);
+#endif
+}
+
 int main( int argc, char* args[] )
 {
     glfwSetErrorCallback(error_callback);
 
-    if (!glfwInit())
-    {
+    if (!glfwInit()) {
         return -1;
     }
 
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     GLFWwindow *window = glfwCreateWindow(example_window_width,
                                           example_window_height,
                                           example_window_title,
-                                          nullptr,
-                                          nullptr);
+                                          NULL,
+                                          NULL);
 
-    if(!window)
-    {
-        return -1;
+    if (!window) {
+        glfwTerminate();
+        return EXIT_FAILURE;
     }
 
-
-    glfwMakeContextCurrent(window);
-
-    glfwSwapInterval(1);
-
-    {
-        // tunis::Context can only be instantiated after a context is created
-        // and made current
-        std::unique_ptr<SampleApp>app = SampleApp::create();
-
-        std::stringstream title;
-        title << SampleApp::getSampleName() << " - " << app->ctx.backendName();
-
-        glfwSetWindowTitle(window, title.str().c_str());
-
-        std::string frameName = std::string("Frame(") + app->ctx.backendName() + ")";
-        while (!glfwWindowShouldClose(window))
-        {
-            glfwPollEvents();
-
-            int winWidth, winHeight, fbWidth , fbHeight;
-            glfwGetWindowSize(window, &winWidth, &winHeight);
-            glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
-
-            // Calculate pixel ration for hi-dpi devices.
-            float pxRatio = static_cast<float>(fbWidth) / static_cast<float>(winWidth);
-
-            double frameTime = glfwGetTime();
-            app->ctx.clearFrame(0, 0, fbWidth, fbHeight);
-            app->ctx.beginFrame(winWidth, winHeight, pxRatio);
-            app->render(frameTime);
-            app->ctx.endFrame();
-
-            glfwSwapBuffers(window);
-        }
+    if (!example_init(get_native_window(window))) {
+        glfwTerminate();
+        return EXIT_FAILURE;
     }
 
+    while (!glfwWindowShouldClose(window)) {
+        example_frame();
+        glfwPollEvents();
+    }
 
     glfwTerminate();
 

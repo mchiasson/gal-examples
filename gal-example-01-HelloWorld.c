@@ -15,7 +15,6 @@ bool example_init(void *native_window_handle)
         fprintf(stderr, "gal_create_default_context failed: %s\n", gal_get_error());
         return false;
     }
-
     return true;
 }
 

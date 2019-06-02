@@ -31,6 +31,29 @@ extern const int example_window_height;
 extern bool example_init(void *native_window_handle);
 extern void example_frame();
 
+void *get_native_window(SDL_Window *window)
+{
+    SDL_SysWMinfo wmi;
+    SDL_VERSION(&wmi.version);
+    if (!SDL_GetWindowWMInfo(window, &wmi)) {
+        fprintf(stderr, "SDL_GetWindowWMInfo failed: %s\n", SDL_GetError());
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return NULL;
+    }
+
+#if defined(SDL_VIDEO_DRIVER_COCOA)
+    return (void *) wmi.info.cocoa.window;
+#elif defined(SDL_VIDEO_DRIVER_WINDOWS)
+    return (void *) wmi.info.win.window;
+#elif defined(SDL_VIDEO_DRIVER_X11)
+    return (void *) wmi.info.x11.window;
+#else
+#    error "Unsupported SDL Video Driver. Please submit a feature request at " \
+           "https://github.com/mchiasson/gal/issues"
+#endif
+}
+
 int main( int argc, char* args[] )
 {
     if (SDL_Init( SDL_INIT_VIDEO ) < 0 )
@@ -52,28 +75,7 @@ int main( int argc, char* args[] )
         return EXIT_FAILURE;
     }
 
-    SDL_SysWMinfo wmi;
-    SDL_VERSION(&wmi.version);
-    if (!SDL_GetWindowWMInfo(window, &wmi)) {
-        fprintf(stderr, "SDL_GetWindowWMInfo failed: %s\n", SDL_GetError());
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return EXIT_FAILURE;
-    }
-
-    bool status;
-#if defined(SDL_VIDEO_DRIVER_COCOA)
-    status = example_init((void *) wmi.info.cocoa.window);
-#elif defined(SDL_VIDEO_DRIVER_WINDOWS)
-    status = example_init((void *) wmi.info.win.window);
-#elif defined(SDL_VIDEO_DRIVER_X11)
-    status = example_init((void *) wmi.info.x11.window);
-#else
-#    error "Unsupported SDL Video Driver. Please submit a feature request at " \
-           "https://github.com/mchiasson/gal/issues"
-#endif
-
-    if (!status) {
+    if (!example_init(get_native_window(window))) {
         SDL_DestroyWindow(window);
         SDL_Quit();
         return EXIT_FAILURE;
