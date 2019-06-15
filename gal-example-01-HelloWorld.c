@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-const char *example_window_title = GAL_STRINGIFY(GAL_CURRENT_FILE);
+const char *example_window_title = "gal-example-01-HelloWorld";
 const int example_window_width = 800;
 const int example_window_height = 600;
 

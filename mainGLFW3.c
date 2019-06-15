@@ -67,10 +67,13 @@ int main( int argc, char* args[] )
         return -1;
     }
 
+    char title[256];
+    snprintf(title, sizeof(title), "%s - GLFW3", example_window_title);
+
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     GLFWwindow *window = glfwCreateWindow(example_window_width,
                                           example_window_height,
-                                          example_window_title,
+                                          title,
                                           NULL,
                                           NULL);
 

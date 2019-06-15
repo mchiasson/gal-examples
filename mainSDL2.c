@@ -62,7 +62,10 @@ int main( int argc, char* args[] )
         return EXIT_FAILURE;
     }
 
-    SDL_Window *window = SDL_CreateWindow(example_window_title,
+    char title[256];
+    snprintf(title, sizeof(title), "%s - SDL2", example_window_title);
+
+    SDL_Window *window = SDL_CreateWindow(title,
                                           SDL_WINDOWPOS_UNDEFINED,
                                           SDL_WINDOWPOS_UNDEFINED,
                                           example_window_width,
