@@ -30,6 +30,7 @@ extern const int example_window_width;
 extern const int example_window_height;
 extern bool example_init(void *native_window_handle);
 extern void example_frame();
+extern void example_shutdown();
 
 void *get_native_window(SDL_Window *window)
 {
@@ -70,7 +71,7 @@ int main( int argc, char* args[] )
                                           SDL_WINDOWPOS_UNDEFINED,
                                           example_window_width,
                                           example_window_height,
-                                          SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_SHOWN);
+                                          SDL_WINDOW_SHOWN);
 
     if (!window) {
         fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
@@ -84,7 +85,7 @@ int main( int argc, char* args[] )
         return EXIT_FAILURE;
     }
 
-    SDL_Event event = {};
+    SDL_Event event = {0};
     bool quit = false;
     while (!quit) {
         example_frame();
@@ -110,6 +111,7 @@ int main( int argc, char* args[] )
         }
     }
 
+    example_shutdown();
     SDL_DestroyWindow(window);
     SDL_Quit();
 
