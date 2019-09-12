@@ -2,32 +2,33 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-const char *example_window_title = "gal-example-01-HelloWorld";
-const int example_window_width = 800;
-const int example_window_height = 600;
+const char *exampleWindowTitle = "gal-example-01-HelloWorld";
 
 static GalContext *ctx = NULL;
+static GalVertexLayout layout = {0};
+static GalStaticVertexBufferHandle vbo = {0};
+static GalViewId viewId = 0;
 
-bool example_init(void *native_window_handle)
+bool exampleInit(void *nativeWindowHandle, int fbWidth, int fbHeight)
 {
-    ctx = galCreate(native_window_handle);
+    ctx = galCreate(nativeWindowHandle, fbWidth, fbHeight);
     if (!ctx) {
-        fprintf(stderr, "gal_context_create failed: %s\n", galGetError());
+        fprintf(stderr, "galCreate failed: %s\n", galGetError());
         return false;
     }
 
-    galSetLayerViewport(ctx, 0, 0, 0, example_window_width, example_window_height);
-    galSetLayerClear(ctx, 0, GAL_CLEAR_ALL, GalColorPreset.Red, 1.0f, 0);
+    galSetViewClear(ctx, viewId, GAL_CLEAR_ALL, GalColorPreset.DimGray, 1.0f, 0);
 
     return true;
 }
 
-void example_frame()
+void exampleFrame()
 {
+    galSubmit(ctx, viewId, (GalProgramHandle){0});
     galPresent(ctx) && galRender(ctx) && galSwapBuffers(ctx);
 }
 
-void example_shutdown()
+void exampleShutdown()
 {
     galDestroy(ctx);
     ctx = NULL;

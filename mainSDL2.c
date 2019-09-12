@@ -25,14 +25,14 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-extern const char *example_window_title;
-extern const int example_window_width;
-extern const int example_window_height;
-extern bool example_init(void *native_window_handle);
-extern void example_frame();
-extern void example_shutdown();
+extern const char *exampleWindowTitle;
+extern const int exampleWindowWidth;
+extern const int exampleFramebufferHeight;
+extern bool exampleInit(void *nativeWindowHandle, int fbWidth, int fbHeight);
+extern void exampleFrame();
+extern void exampleShutdown();
 
-void *get_native_window(SDL_Window *window)
+void *getNativeWindow(SDL_Window *window)
 {
     SDL_SysWMinfo wmi;
     SDL_VERSION(&wmi.version);
@@ -64,14 +64,14 @@ int main( int argc, char* args[] )
     }
 
     char title[256];
-    snprintf(title, sizeof(title), "%s - SDL2", example_window_title);
+    snprintf(title, sizeof(title), "%s - SDL2", exampleWindowTitle);
 
     SDL_Window *window = SDL_CreateWindow(title,
                                           SDL_WINDOWPOS_UNDEFINED,
                                           SDL_WINDOWPOS_UNDEFINED,
-                                          example_window_width,
-                                          example_window_height,
-                                          SDL_WINDOW_SHOWN);
+                                          1280,
+                                          720,
+                                          SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
 
     if (!window) {
         fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
@@ -79,7 +79,10 @@ int main( int argc, char* args[] )
         return EXIT_FAILURE;
     }
 
-    if (!example_init(get_native_window(window))) {
+    int fbWidth, fbHeight;
+    SDL_GL_GetDrawableSize(window, &fbWidth, &fbHeight);
+
+    if (!exampleInit(getNativeWindow(window), fbWidth, fbHeight)) {
         SDL_DestroyWindow(window);
         SDL_Quit();
         return EXIT_FAILURE;
@@ -88,7 +91,7 @@ int main( int argc, char* args[] )
     SDL_Event event = {0};
     bool quit = false;
     while (!quit) {
-        example_frame();
+        exampleFrame();
 
         while (SDL_PollEvent(&event) != 0) {
             switch (event.type) {
@@ -111,7 +114,7 @@ int main( int argc, char* args[] )
         }
     }
 
-    example_shutdown();
+    exampleShutdown();
     SDL_DestroyWindow(window);
     SDL_Quit();
 
