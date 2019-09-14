@@ -21,17 +21,15 @@
 
 cmake_minimum_required(VERSION 3.10)
 
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
+if(POLICY CMP0074)
+  cmake_policy(SET CMP0074 NEW)
+endif()
 
-HunterGate(
-    URL "https://github.com/ruslo/hunter/archive/v0.23.184.tar.gz"
-    SHA1 "fe3fb05d51c21499c7eebbe7d0e102742a54a9cd"
-)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 project(gal-examples
     DESCRIPTION "Graphic Abstraction Layer Examples - by Mathieu-André Chiasson"
 )
-
 
 ############################## Build Deps ######################################
 
@@ -43,12 +41,12 @@ set(GAL_EXAMPLE_WINDOW_SYSTEM "SDL2" CACHE STRING "Window System to use for GAL 
 set_property(CACHE GAL_EXAMPLE_WINDOW_SYSTEM PROPERTY STRINGS SDL2 GLFW3)
 
 if (GAL_EXAMPLE_WINDOW_SYSTEM STREQUAL SDL2)
-    hunter_add_package(SDL2)
     find_package(SDL2 CONFIG REQUIRED)
 elseif (GAL_EXAMPLE_WINDOW_SYSTEM STREQUAL GLFW3)
-    hunter_add_package(glfw)
     find_package(glfw3 CONFIG REQUIRED)
 endif()
+
+############################ Example common ####################################
 
 add_library(gal-examples-main
     main${GAL_EXAMPLE_WINDOW_SYSTEM}.c
@@ -61,6 +59,8 @@ target_link_libraries(gal-examples-main PUBLIC
     $<$<TARGET_EXISTS:SDL2::SDL2>:SDL2::SDL2>
     $<$<TARGET_EXISTS:SDL2::SDL2main>:SDL2::SDL2main>
 )
+
+############################### Examples #######################################
 
 add_executable(gal-example-01-HelloWorld gal-example-01-HelloWorld.c)
 target_link_libraries(gal-example-01-HelloWorld gal-examples-main)
