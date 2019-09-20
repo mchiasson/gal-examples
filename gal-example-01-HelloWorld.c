@@ -2,34 +2,37 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-const char *exampleWindowTitle = "gal-example-01-HelloWorld";
+const char *exampleWindowTitle = __FILE__;
 
-static GalContext *ctx = NULL;
-static GalVertexLayout layout = {0};
-static GalStaticVertexBufferHandle vbo = {0};
-static GalViewId viewId = 0;
+static GalDevice *device = NULL;
+static GalSwapChain swapchain = GAL_HANDLE_INIT();
 
 bool exampleInit(void *nativeWindowHandle, int fbWidth, int fbHeight)
 {
-    ctx = galCreate(nativeWindowHandle, fbWidth, fbHeight);
-    if (!ctx) {
-        fprintf(stderr, "galCreate failed: %s\n", galGetError());
-        return false;
-    }
+    GalDeviceDescriptor deviceDesc;
+    deviceDesc.type = GAL_DEVICE_TYPE_AUTO;
+    deviceDesc.msaa = GAL_MSAA_OFF;
+    deviceDesc.vsync = true;
 
-    galSetViewClear(ctx, viewId, GAL_CLEAR_ALL, GalColorPreset.DimGray, 1.0f, 0);
+    device = galDeviceCreate(deviceDesc);
 
+
+    GalSwapChainDescriptor swapchainDesc;
+    swapchainDesc.nativeWindowHandle = nativeWindowHandle;
+    swapchainDesc.width = fbWidth;
+    swapchainDesc.height = fbHeight;
+    swapchainDesc.format = galDeviceGetSwapChainPreferredFormat(device);
+    swapchainDesc.usage = GAL_TEXTURE_USAGE_OUTPUT_ATTACHMENT;
+    swapchain = galDeviceConfigureSwapChain(device, swapchainDesc);
     return true;
 }
 
 void exampleFrame()
 {
-    galSubmit(ctx, viewId, (GalProgramHandle){0});
-    galPresent(ctx) && galRender(ctx) && galSwapBuffers(ctx);
 }
 
 void exampleShutdown()
 {
-    galDestroy(ctx);
-    ctx = NULL;
+    galDeviceDestroy(device);
+    device = NULL;
 }
