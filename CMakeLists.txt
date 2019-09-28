@@ -21,11 +21,11 @@
 
 cmake_minimum_required(VERSION 3.10)
 
+include(gal_shader_compile)
+
 if(POLICY CMP0074)
   cmake_policy(SET CMP0074 NEW)
 endif()
-
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 project(gal-examples
     DESCRIPTION "Graphic Abstraction Layer Examples - by Mathieu-André Chiasson"
@@ -48,8 +48,21 @@ endif()
 
 ############################ Example common ####################################
 
+gal_shader_compile(OUTPUT example_shaders SOURCES
+    shaders/color.vert
+    shaders/color.frag
+    shaders/default.vert
+    shaders/default.frag
+)
+
 add_library(gal-examples-main
     main${GAL_EXAMPLE_WINDOW_SYSTEM}.c
+    ${example_shaders}
+)
+
+target_include_directories(gal-examples-main PUBLIC
+    ${PROJECT_SOURCE_DIR}
+    ${PROJECT_BINARY_DIR}
 )
 
 target_link_libraries(gal-examples-main PUBLIC
