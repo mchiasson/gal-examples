@@ -48,11 +48,14 @@ endif()
 
 ############################ Example common ####################################
 
-gal_shader_compile(OUTPUT example_shaders SOURCES
-    shaders/color.vert
-    shaders/color.frag
-    shaders/default.vert
-    shaders/default.frag
+gal_shader_compile(
+    OUTPUT
+        example_shaders
+    SOURCES
+        shaders/color.vert
+        shaders/color.frag
+        shaders/default.vert
+        shaders/default.frag
 )
 
 add_library(gal-examples-main
