@@ -1,124 +1,192 @@
-#include <gal/gal.h>
-#include <string.h> // memcpy
 #include "example_shaders.h"
+#include <assert.h> // assert
+#include <gal/gal.h>
+#include <stddef.h> // offsetof
+#include <string.h> // memcpy
 
 const char *exampleWindowTitle = __FILE__;
 
-static GalDevice *device = NULL;
-static GalSwapChain swapchain = {0};
-static GalShaderModule vertexShader = {0};
-static GalShaderModule fragmentShader = {0};
+static mtx_t mutex;
+static cnd_t cond;
+static GalAdapter adapter = {0};
+static GalDevice device = {0};
+static GalRenderPipeline renderPipeline = {0};
+static GalSwapChain swapChain = {0};
 
-typedef struct Vertex {
+typedef struct Vertex
+{
     float x, y;
     GalColor color;
 } Vertex;
 
+static GalBuffer vertexBuffer;
+static Vertex vertexData[] = {{0.0f, 0.8f, GalColorCyan},
+                              {-0.8f, -0.8f, GalColorYellow},
+                              {0.8f, -0.8f, GalColorMagenta}};
+
+void write_vertex(GalBufferMapAsyncStatus status, uint8_t *dest, void *userdata)
+{
+    mtx_lock(&mutex);
+
+    assert(status == GalBufferMapAsyncStatusSuccess);
+    memcpy(dest, vertexData, sizeof(vertexData));
+
+    cnd_broadcast(&cond);
+    mtx_unlock(&mutex);
+}
+
 bool exampleInit(void *nativeWindowHandle, int fbWidth, int fbHeight)
 {
+    mtx_init(&mutex, mtx_plain);
+    cnd_init(&cond);
+
     /*** Device Setup ***/
 
-    GalDeviceDescriptor deviceDesc;
-    deviceDesc.type = GAL_DEVICE_TYPE_AUTO;
-    deviceDesc.msaa = GAL_MSAA_OFF;
-    deviceDesc.vsync = true;
+    adapter = galRequestAdapter(
+        &(GalRequestAdapterOptions){.powerPreference = GalPowerPreferenceHighPerformance});
 
-    device = galDeviceCreate(&deviceDesc);
+    device = galAdapterRequestDevice(adapter,
+                                     &(GalDeviceDescriptor){
+                                         .extensions = {.anisotropicFiltering = false},
+                                     });
 
     /*** Shader Setup ***/
 
-    vertexShader = galDeviceCreateShaderModule(device,
-                                               GAL_SHADER_MODULE_VERTEX,
-                                               example_shaders,
-                                               "shaders/color.vert");
+    GalShaderModuleDescriptor vertexDescriptor = {.code = shaders_color_vert_460_glsl,
+                                                  .length = sizeof(shaders_color_vert_460_glsl)};
 
-    fragmentShader = galDeviceCreateShaderModule(device,
-                                                 GAL_SHADER_MODULE_FRAGMENT,
-                                                 example_shaders,
-                                                 "shaders/color.frag");
+    GalShaderModuleDescriptor fragmentDescriptor = {.code = shaders_color_frag_460_glsl,
+                                                    .length = sizeof(shaders_color_frag_460_glsl)};
+
+    GalShaderModule vertexShader = galDeviceCreateShaderModule(device, &vertexDescriptor);
+    GalShaderModule fragmentShader = galDeviceCreateShaderModule(device, &fragmentDescriptor);
+
+    const GalProgrammableStageDescriptor vertexStageDescriptor = {.module = vertexShader,
+                                                                  .entryPoint = "main"};
+    const GalProgrammableStageDescriptor fragmentStageDescriptor = {.module = fragmentShader,
+                                                                    .entryPoint = "main"};
 
     /*** Vertex Buffer Setup ***/
 
-    Vertex vertexData[] = {
-        { 0.0f,  0.8f, {  0, 255, 255, 255}},
-        {-0.8f, -0.8f, {255, 255,   0, 255}},
-        { 0.8f, -0.8f, {255,   0, 255, 255}}
-    };
+    GalBufferDescriptor vertexDataBufferDescriptor = {.size = sizeof(vertexData),
+                                                      .usage = GalBufferUsageMapWrite
+                                                               | GalBufferUsageVertex};
 
-    const int colorOffset = offsetof(Vertex, color);
-
-    GalBufferDescriptor vertexDataBufferDescriptor;
-    vertexDataBufferDescriptor.bufferSize = sizeof(vertexData);
-    vertexDataBufferDescriptor.usage = GAL_BUFFER_USAGE_MAP_WRITE | GAL_BUFFER_USAGE_VERTEX;
-
-    GalBuffer vertexBuffer = galDeviceCreateBuffer(device, &vertexDataBufferDescriptor);
+    vertexBuffer = galDeviceCreateBuffer(device, &vertexDataBufferDescriptor);
 
     /*** Write Data To GPU ***/
 
-    galBufferSetSubData(vertexBuffer, 0, sizeof(vertexData), vertexData);
+    mtx_lock(&mutex);
+    galBufferMapWriteAsync(vertexBuffer, write_vertex, NULL);
+    cnd_wait(&cond, &mutex);
+    mtx_unlock(&mutex);
+    galBufferUnmap(vertexBuffer);
 
     /*** Describe Vertex Data For Pipeline ***/
 
-    GalVertexAttributeDescriptor positionAttribute;
-    positionAttribute.shaderLocation = 0;
-    positionAttribute.offset = 0;
-    positionAttribute.format = GAL_VERTEX_FORMAT_FLOAT2;
+    GalVertexAttributeDescriptor attributes[2] = {// position attribute
+                                                  {.shaderLocation = 0,
+                                                   .offset = 0,
+                                                   .format = GalVertexFormatFloat2},
+                                                  // color attribute
+                                                  {.shaderLocation = 1,
+                                                   .offset = offsetof(Vertex, color),
+                                                   .format = GalVertexFormatUchar4Norm}};
 
-    GalVertexAttributeDescriptor colorAttribute;
-    positionAttribute.shaderLocation = 1;
-    positionAttribute.offset = offsetof(Vertex, color);
-    positionAttribute.format = GAL_VERTEX_FORMAT_UCHAR4NORM;
+    GalVertexBufferDescriptor vertexBufferDescriptor = {.stride = sizeof(Vertex),
+                                                        .attributeSet = attributes,
+                                                        .attributeSetLength = sizeof(attributes)};
 
-    GalVertexBufferDescriptor vertexBufferDescriptor;
-    vertexBufferDescriptor.stride = sizeof(Vertex);
-    vertexBufferDescriptor.attributeCount = 2;
-    vertexBufferDescriptor.attributes[0] = positionAttribute;
-    vertexBufferDescriptor.attributes[1] = colorAttribute;
-
-    GalVertexInputDescriptor vertexInputDescriptor = {
-        vertexBuffers: [vertexBufferDescriptor]
-    };
+    GalVertexInputDescriptor vertexInputDescriptor = {.vertexBuffers = &vertexBufferDescriptor,
+                                                      .vertexBuffersLength = 1};
 
     /*** Finish Pipeline State ***/
 
-//    GPUBlendDescriptors alphaBlendDescriptor = { srcFactor: "one", dstFactor: "zero", operation: "add" };
-//    GPUBlendDescriptors colorBlendDescriptor = { srcFactor: "one", dstFactor: "zero", operation: "add" };
+    GalBlendDescriptor alphaBlendDescriptor = {.srcFactor = GalBlendFactorOne,
+                                               .dstFactor = GalBlendFactorZero,
+                                               .operation = GalBlendOperationAdd};
 
-//    GPUColorStateDescriptor colorStateDescriptor = {
-//        format: "bgra8unorm",
-//        alphaBlend: alphaBlendDescriptor,
-//        colorBlend: colorBlendDescriptor,
-//        writeMask: GPUColorWriteBits.ALL
-//    };
+    GalBlendDescriptor colorBlendDescriptor = {.srcFactor = GalBlendFactorOne,
+                                               .dstFactor = GalBlendFactorZero,
+                                               .operation = GalBlendOperationAdd};
 
-//    GPURenderPipelineDescriptor renderPipelineDescriptor = {
-//        vertexStage: vertexStageDescriptor,
-//        fragmentStage: fragmentStageDescriptor,
-//        primitiveTopology: "triangle-list",
-//        colorStates: [colorStateDescriptor],
-//        vertexInput: vertexInputDescriptor
-//    };
+    GalColorStateDescriptor colorStateDescriptor = {.format = GalTextureFormatRgba8Unorm,
+                                                    .alphaBlend = alphaBlendDescriptor,
+                                                    .colorBlend = colorBlendDescriptor,
+                                                    .writeMask = GalColorWriteAll};
 
-//    GPURenderPipeline renderPipeline = device.createRenderPipeline(renderPipelineDescriptor);
+    GalRenderPipelineDescriptor renderPipelineDescriptor = {
+        .vertexStage = vertexStageDescriptor,
+        .fragmentStage = &fragmentStageDescriptor,
+        .primitiveTopology = GalPrimitiveTopologyTriangleList,
+        .colorStates = &colorStateDescriptor,
+        .colorStatesLength = 1,
+        .vertexInput = vertexInputDescriptor,
+        .sampleCount = 1,
+        .sampleMask = 0xFFFFFFFF,
+    };
+
+    renderPipeline = galDeviceCreateRenderPipeline(device, &renderPipelineDescriptor);
 
     /*** Swap Chain Setup ***/
 
-    GalSwapChainDescriptor swapchainDesc;
-    swapchainDesc.nativeWindowHandle = nativeWindowHandle;
-    swapchainDesc.width = fbWidth;
-    swapchainDesc.height = fbHeight;
-    swapchainDesc.format = galDeviceGetSwapChainPreferredFormat(device);
-    swapchainDesc.usage = GAL_TEXTURE_USAGE_OUTPUT_ATTACHMENT;
-    swapchain = galDeviceConfigureSwapChain(device, &swapchainDesc);
+    GalSwapChainDescriptor swapchainDesc = {.nativeWindowHandle = nativeWindowHandle,
+                                            .width = fbWidth,
+                                            .height = fbHeight,
+                                            .format = galDeviceGetSwapChainPreferredFormat(device),
+                                            .usage = GalTextureUsageOutputAttachment};
+
+    swapChain = galDeviceConfigureSwapChain(device, &swapchainDesc);
+
     return true;
 }
 
 void exampleFrame()
 {
+    /*** Render Pass Setup ***/
+
+    /* Acquire Texture To Render To */
+
+    GalTexture swapChainTexture = galSwapChainGetCurrentTexture(swapChain);
+    GalTextureView renderAttachment = galTextureCreateDefaultView(swapChainTexture);
+
+    GalRenderPassColorAttachmentDescriptor colorAttachmentDescriptor
+        = {.attachment = renderAttachment,
+           .loadOp = GalLoadOpClear,
+           .storeOp = GalStoreOpStore,
+           .clearColor = GalColorMidnightBlue};
+
+    GalRenderPassDescriptor renderPassDescriptor = {.colorAttachments = &colorAttachmentDescriptor,
+                                                    .colorAttachmentsSize = 1};
+
+    /*** Rendering ***/
+
+    GalCommandEncoder commandEncoder = galDeviceCreateCommandEncoder(device, NULL);
+    GalRenderPassEncoder renderPassEncoder = galCommandEncoderBeginRenderPass(commandEncoder,
+                                                                              &renderPassDescriptor);
+
+    galRenderPassEncoderSetPipeline(renderPassEncoder, renderPipeline);
+
+    uint32_t vertexBufferSlot = 0;
+    GalBufferSize vertexBufferOffset = 0;
+    galRenderPassEncoderSetVertexBuffers(renderPassEncoder,
+                                         vertexBufferSlot,
+                                         &vertexBuffer,
+                                         &vertexBufferOffset,
+                                         1);
+    galRenderPassEncoderDraw(renderPassEncoder,
+                             3,  // 3 vertices
+                             1,  // 1 instance
+                             0,  // 0th vertex
+                             0); // 0th instance.
+    galRenderPassEncoderEndPass(renderPassEncoder);
+
+    GalCommandBuffer commandBuffer = galCommandEncoderFinish(commandEncoder, NULL);
+
+    GalQueue queue = galDeviceGetQueue(device);
+    galQueueSubmit(queue, &commandBuffer, 1);
 }
 
 void exampleShutdown()
 {
-    galDeviceDestroy(device);
-    device = NULL;
 }
